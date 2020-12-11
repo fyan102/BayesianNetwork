@@ -113,7 +113,7 @@ public class NodeView extends Rectangle {
         }
         border = new Line(this.getX(), this.getY() + 20, this.getX() + this.getWidth(),
                 this.getY() + 20);
-        this.setFill(Color.YELLOW);
+        this.setFill(Color.LIGHTYELLOW);
         this.setStroke(Color.BLACK);
     }
 
