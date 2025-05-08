@@ -1,99 +1,249 @@
 package org.fyan102.bayesiannetwork;
 
-import javafx.application.Application;
-import javafx.scene.Group;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
+import javax.swing.*;
+import javax.swing.border.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
+import org.fyan102.bayesiannetwork.util.NetworkFileHandler;
 
-
-public class Window extends Application {
+public class Window extends JFrame {
     // The view for network
     private NetworkView network;
     // The view for menu
     private MenuView menu;
-    // menu groups
-    private Group root;
+    // Main panel
+    private JPanel mainPanel;
+    
+    // Modern UI constants
+    private static final Color BACKGROUND_COLOR = new Color(250, 250, 250);
+    private static final Color TOOLBAR_COLOR = new Color(240, 240, 240);
+    private static final Color BORDER_COLOR = new Color(200, 200, 200);
+    private static final Font MENU_FONT = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final Font BUTTON_FONT = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final Color BUTTON_COLOR = new Color(65, 105, 225); // Royal Blue
+    private static final Color BUTTON_HOVER_COLOR = new Color(100, 149, 237); // Cornflower Blue
 
     public Window() {
-        menu = new MenuView();
+        initializeUI();
+        setupNetwork();
+    }
+
+    private void initializeUI() {
+        setTitle("Bayesian Network");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1024, 768);
+        setLocationRelativeTo(null);
+        setBackground(BACKGROUND_COLOR);
+
+        // Create main panel with modern look
+        mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(BACKGROUND_COLOR);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        // Setup menu bar
+        setupMenuBar();
+        
+        // Setup toolbar
+        setupToolBar();
+
+        // Setup network view
         network = new NetworkView();
-        root = new Group();
+        network.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        mainPanel.add(network, BorderLayout.CENTER);
+
+        add(mainPanel);
+    }
+
+    private void setupMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+        menuBar.setBackground(TOOLBAR_COLOR);
+        menuBar.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        
+        // File menu
+        JMenu fileMenu = createMenu("File");
+        JMenuItem openItem = createMenuItem("Open", e -> openFile());
+        JMenuItem saveItem = createMenuItem("Save", e -> saveFile());
+        fileMenu.add(openItem);
+        fileMenu.add(saveItem);
+        
+        // Network menu
+        JMenu networkMenu = createMenu("Network");
+        JMenuItem runItem = createMenuItem("Run", e -> network.calculate());
+        JMenuItem addNodeItem = createMenuItem("Add Chance Node", e -> addNode());
+        networkMenu.add(runItem);
+        networkMenu.add(addNodeItem);
+
+        menuBar.add(fileMenu);
+        menuBar.add(networkMenu);
+        setJMenuBar(menuBar);
+    }
+
+    private JMenu createMenu(String title) {
+        JMenu menu = new JMenu(title);
+        menu.setFont(MENU_FONT);
+        return menu;
+    }
+
+    private JMenuItem createMenuItem(String title, ActionListener listener) {
+        JMenuItem item = new JMenuItem(title);
+        item.setFont(MENU_FONT);
+        item.addActionListener(listener);
+        return item;
+    }
+
+    private void setupToolBar() {
+        JToolBar toolBar = new JToolBar();
+        toolBar.setFloatable(false);
+        toolBar.setBackground(TOOLBAR_COLOR);
+        toolBar.setBorder(BorderFactory.createCompoundBorder(
+            new MatteBorder(0, 0, 1, 0, BORDER_COLOR),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        JButton newButton = createToolbarButton("New");
+        JButton openButton = createToolbarButton("Open");
+        openButton.addActionListener(e -> openFile());
+        JButton closeButton = createToolbarButton("Close");
+        JButton newNodeButton = createToolbarButton("Chance Node");
+        newNodeButton.addActionListener(e -> addNode());
+        JButton runButton = createToolbarButton("Run");
+        runButton.addActionListener(e -> network.calculate());
+
+        toolBar.add(newButton);
+        toolBar.add(openButton);
+        toolBar.add(closeButton);
+        toolBar.addSeparator(new Dimension(20, 0));
+        toolBar.add(newNodeButton);
+        toolBar.add(runButton);
+
+        mainPanel.add(toolBar, BorderLayout.NORTH);
+    }
+
+    private JButton createToolbarButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(BUTTON_FONT);
+        button.setBackground(TOOLBAR_COLOR);
+        button.setForeground(BUTTON_COLOR);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Add hover effect
+        button.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                button.setForeground(BUTTON_HOVER_COLOR);
+            }
+            public void mouseExited(MouseEvent e) {
+                button.setForeground(BUTTON_COLOR);
+            }
+        });
+        
+        return button;
+    }
+
+    private void setupNetwork() {
         Node node = new Node("Node1");
         node.addState("true");
         node.addState("false");
+        
         Node parent1 = new Node("Parent1");
         Node parent2 = new Node("Parent2");
+        
         parent1.addState("St1");
         parent1.addState("St2");
         parent1.setBeliefs(new double[]{0.3, 0.7});
+        
         parent2.addState("St1");
         parent2.addState("St2");
         parent2.addState("St3");
         parent2.setBeliefs(new double[]{0.2, 0.3, 0.5});
+        
         node.addParent(parent1);
         node.addParent(parent2);
-        node.setProbs(new double[][]{{0.2, 0.8}, {0.15, 0.85}, {0.18, 0.82}, {0.07, 0.93}, {0.85, 0.15}, {0.62, 0.38}});
+        node.setProbs(new double[][]{
+            {0.2, 0.8}, {0.15, 0.85}, {0.18, 0.82},
+            {0.07, 0.93}, {0.85, 0.15}, {0.62, 0.38}
+        });
+        
         network.addNode(parent1);
         network.addNode(parent2);
         network.addNode(node);
     }
 
-    private void setMenu(Stage stage) {
-        menu.getMenuItem("Open").setOnAction(actionEvent -> openFile(stage));
-        menu.getMenuItem("Run").setOnAction(actionEvent -> network.calculate());
-        menu.getMenuItem("Chance Node").setOnAction(actionEvent -> addNode());
-    }
-
     private void addNode() {
         network.addNode(new Node());
-        root.getChildren().addAll(network.getNode(network.getNetwork().getNumberOfNodes() - 1).getComponents());
+        mainPanel.revalidate();
+        mainPanel.repaint();
     }
 
-    private ToolBar setToolBox() {
-        ToolBar toolBar = new ToolBar();
-        final Separator separator = new Separator();
-        Button bNew = new Button("New");
-        Button bOpen = new Button("Open");
-        bOpen.setOnAction(menu.getMenuItem("Open").getOnAction());
-        Button bClose = new Button("Close");
-        Button bNewNode = new Button("Chance Node");
-        bNewNode.setOnAction(menu.getMenuItem("Chance Node").getOnAction());
-        Button bRun = new Button("Run");
-        bRun.setOnAction(menu.getMenuItem("Run").getOnAction());
-        toolBar.getItems().addAll(bNew, bOpen, bClose, bNewNode, bRun);
-        toolBar.getItems().add(3, separator);
-        return toolBar;
+    private void openFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".bn");
+            }
+            public String getDescription() {
+                return "Bayesian Network Files (*.bn)";
+            }
+        });
+        
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            try {
+                NetworkFileHandler.loadNetwork(network, selectedFile);
+                JOptionPane.showMessageDialog(this, 
+                    "Network loaded successfully!", 
+                    "Load Successful", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this,
+                    "Error loading network: " + ex.getMessage(),
+                    "Load Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
-    private void openFile(Stage stage) {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Bayesian Network Files", "*.bne"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
-        fileChooser.setTitle("Open a Network");
-        fileChooser.showOpenDialog(stage);
+    private void saveFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".bn");
+            }
+            public String getDescription() {
+                return "Bayesian Network Files (*.bn)";
+            }
+        });
+        
+        int result = fileChooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            if (!selectedFile.getName().toLowerCase().endsWith(".bn")) {
+                selectedFile = new File(selectedFile.getAbsolutePath() + ".bn");
+            }
+            
+            try {
+                NetworkFileHandler.saveNetwork(network, selectedFile);
+                JOptionPane.showMessageDialog(this, 
+                    "Network saved successfully!", 
+                    "Save Successful", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this,
+                    "Error saving network: " + ex.getMessage(),
+                    "Save Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
-    //@Override
-    public void start(Stage stage) {
-        //menu
-        setMenu(stage);
-        MenuBar mb = new MenuBar();
-        mb.prefWidthProperty().bind(stage.widthProperty());
-        mb.getMenus().addAll(menu.getMenus());
-        //Tool bar
-        VBox vb = new VBox(mb);
-        vb.getChildren().addAll(setToolBox());
-
-        root.getChildren().addAll(vb);
-        root.getChildren().addAll(network.getAllComponents());
-        Scene scene = new Scene(root, 800, 600);
-        stage.setTitle("Bayesian Network");
-        stage.setScene(scene);
-        stage.show();
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            Window window = new Window();
+            window.setVisible(true);
+        });
     }
 }

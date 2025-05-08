@@ -1,12 +1,10 @@
 package org.fyan102.bayesiannetwork;
 
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-
+import javax.swing.*;
 import java.util.ArrayList;
 
 public class MenuView {
-    private ArrayList<Menu> menus;
+    private ArrayList<JMenu> menus;
 
     /**
      * Constructor of MenuView
@@ -23,11 +21,11 @@ public class MenuView {
      * @param items a list of menu items
      */
     private void addMenu(String name, String[] items) {
-        Menu fileMenu = new Menu(name);
+        JMenu fileMenu = new JMenu(name);
         // add menu items to menu
         for (String menu : items) {
-            MenuItem item = new MenuItem(menu);
-            fileMenu.getItems().add(item);
+            JMenuItem item = new JMenuItem(menu);
+            fileMenu.add(item);
         }
         menus.add(fileMenu);
     }
@@ -38,15 +36,16 @@ public class MenuView {
      * @param name the name of the menu item
      * @return the menu item if exist, an empty menu item otherwise
      */
-    public MenuItem getMenuItem(String name) {
-        for (Menu menu : menus) {
-            for (MenuItem item : menu.getItems()) {
+    public JMenuItem getMenuItem(String name) {
+        for (JMenu menu : menus) {
+            for (int i = 0; i < menu.getItemCount(); i++) {
+                JMenuItem item = menu.getItem(i);
                 if (item.getText().equals(name)) {
                     return item;
                 }
             }
         }
-        return new MenuItem();
+        return new JMenuItem();
     }
 
     /**
@@ -54,7 +53,7 @@ public class MenuView {
      *
      * @return the list of menus
      */
-    public ArrayList<Menu> getMenus() {
+    public ArrayList<JMenu> getMenus() {
         return menus;
     }
 
@@ -69,7 +68,7 @@ public class MenuView {
      *
      * @param menus the menu list
      */
-    public void setMenus(ArrayList<Menu> menus) {
+    public void setMenus(ArrayList<JMenu> menus) {
         this.menus = menus;
     }
 }
