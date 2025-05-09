@@ -3,4 +3,5 @@ output
 build
 .gradle
 gradle
-
+build
+target

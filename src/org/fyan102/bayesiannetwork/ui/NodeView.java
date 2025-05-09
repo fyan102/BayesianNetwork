@@ -15,6 +15,7 @@ public class NodeView extends JPanel {
     private Node node;
     private Point dragStart;
     private Point location;
+    private boolean isSelected = false;
     private static final Color BACKGROUND_COLOR = new Color(245, 245, 245);
     private static final Color BORDER_COLOR = new Color(200, 200, 200);
     private static final Color TITLE_COLOR = new Color(70, 70, 70);
@@ -24,6 +25,18 @@ public class NodeView extends JPanel {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.PLAIN, 12);
     private static final Color BUTTON_COLOR = new Color(65, 105, 225); // Royal Blue
     private static final Color BUTTON_HOVER_COLOR = new Color(105, 145, 255);
+    private static final Color NODE_BACKGROUND = new Color(255, 255, 255);
+    private static final Color NODE_BORDER = new Color(224, 224, 224);
+    private static final Color NODE_SELECTED_BORDER = new Color(0, 120, 212);
+    private static final Color NODE_TEXT = new Color(32, 32, 32);
+    private static final Color NODE_HOVER_BACKGROUND = new Color(243, 243, 243);
+    private static final Color NODE_SHADOW = new Color(0, 0, 0, 20);
+    private static final int CORNER_RADIUS = 8;
+    private static final Font NODE_FONT = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final int NODE_WIDTH = 140;
+    private static final int NODE_HEIGHT = 50;
+    private static final int PADDING = 12;
+    private static final int SHADOW_OFFSET = 2;
 
     public NodeView() {
         this(new Node());
@@ -87,6 +100,18 @@ public class NodeView extends JPanel {
         MouseAdapter mouseAdapter = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                // Deselect all other nodes
+                Container parent = getParent();
+                if (parent instanceof NetworkView) {
+                    for (Component comp : parent.getComponents()) {
+                        if (comp instanceof NodeView) {
+                            ((NodeView) comp).setSelected(false);
+                        }
+                    }
+                }
+                // Select this node
+                setSelected(true);
+                
                 dragStart = e.getPoint();
                 location = getLocation();
             }
@@ -113,22 +138,6 @@ public class NodeView extends JPanel {
                 } else if (e.getButton() == MouseEvent.BUTTON3) { // Right click
                     showContextMenu(e.getX(), e.getY());
                 }
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(new Color(100, 149, 237), 1, true), // Cornflower Blue
-                    BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                setBorder(BorderFactory.createCompoundBorder(
-                    new LineBorder(BORDER_COLOR, 1, true),
-                    BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
             }
         };
 
@@ -185,23 +194,41 @@ public class NodeView extends JPanel {
         dialog.setSize(350, 300);
         dialog.setLocationRelativeTo(this);
         
-        JPanel panel = new JPanel(new GridLayout(0, 1, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setBackground(BACKGROUND_COLOR);
         
+        // Node name label
         JLabel nameLabel = new JLabel("Name: " + node.getName());
         nameLabel.setFont(TITLE_FONT);
         nameLabel.setForeground(TITLE_COLOR);
-        panel.add(nameLabel);
+        panel.add(nameLabel, BorderLayout.NORTH);
         
-        panel.add(new JSeparator());
-        
+        // Create table for probabilities
+        String[] columnNames = new String[]{"State", "Probability"};
+        Object[][] data = new Object[node.getNumberOfStates()][2];
         for (int i = 0; i < node.getNumberOfStates(); i++) {
-            JLabel stateLabel = new JLabel(String.format("%s: %.4f", node.getState(i), node.getBelief(i)));
-            stateLabel.setFont(STATE_FONT);
-            stateLabel.setForeground(STATE_COLOR);
-            panel.add(stateLabel);
+            data[i][0] = node.getState(i);
+            data[i][1] = String.format("%.4f", node.getBelief(i));
         }
+        
+        JTable table = new JTable(data, columnNames);
+        table.setFont(STATE_FONT);
+        table.setRowHeight(25);
+        table.setGridColor(BORDER_COLOR);
+        table.setShowGrid(true);
+        table.setShowHorizontalLines(true);
+        table.setShowVerticalLines(true);
+        
+        // Style header
+        table.getTableHeader().setFont(TITLE_FONT);
+        table.getTableHeader().setBackground(BACKGROUND_COLOR);
+        table.getTableHeader().setForeground(TITLE_COLOR);
+        
+        // Add table to scroll pane
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+        panel.add(scrollPane, BorderLayout.CENTER);
         
         dialog.add(panel);
         dialog.setVisible(true);
@@ -682,5 +709,31 @@ public class NodeView extends JPanel {
         }
         
         return rowIndex;
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // Draw background
+        g2d.setColor(getBackground());
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+        
+        // Draw border
+        g2d.setColor(BORDER_COLOR);
+        g2d.setStroke(new BasicStroke(1));
+        g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+    }
+
+    public boolean isSelected() {
+        return isSelected;
+    }
+
+    public void setSelected(boolean selected) {
+        if (this.isSelected != selected) {
+            this.isSelected = selected;
+            repaint();
+        }
     }
 }

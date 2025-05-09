@@ -1,0 +1,15 @@
+Package: bayesian-network
+Version: 1.0.0
+Section: science
+Priority: optional
+Architecture: all
+Depends: default-jre (>= 11)
+Maintainer: Your Name <your.email@example.com>
+Description: Bayesian Network Editor
+ A tool for creating and analyzing Bayesian Networks.
+ This application allows users to:
+ - Create and edit Bayesian networks
+ - Add nodes and define their probabilities
+ - Create links between nodes
+ - Run probability calculations
+ - Save and load network configurations 

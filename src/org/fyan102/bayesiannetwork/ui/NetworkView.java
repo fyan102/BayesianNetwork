@@ -73,6 +73,10 @@ public class NetworkView extends JPanel implements MouseListener {
 
     public void calculate() {
         network.calculate();
+        // Update all nodes
+        for (NodeView nodeView : nodes) {
+            nodeView.repaint();
+        }
         repaint();
         System.out.println(network);
     }
@@ -293,5 +297,18 @@ public class NetworkView extends JPanel implements MouseListener {
     @Override
     public void mouseExited(MouseEvent e) {
         // Not used
+    }
+
+    // Add this method to get NodeView for a given Node
+    public NodeView getNodeView(Node node) {
+        for (Component comp : getComponents()) {
+            if (comp instanceof NodeView) {
+                NodeView nodeView = (NodeView) comp;
+                if (nodeView.getNode() == node) {
+                    return nodeView;
+                }
+            }
+        }
+        return null;
     }
 }

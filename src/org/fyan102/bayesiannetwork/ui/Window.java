@@ -6,6 +6,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import org.fyan102.bayesiannetwork.model.Node;
 import org.fyan102.bayesiannetwork.model.Network;
 import org.fyan102.bayesiannetwork.util.NetworkFileHandler;
@@ -26,19 +27,58 @@ public class Window extends JFrame {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.PLAIN, 12);
     private static final Color BUTTON_COLOR = new Color(65, 105, 225); // Royal Blue
     private static final Color BUTTON_HOVER_COLOR = new Color(100, 149, 237); // Cornflower Blue
+    private static final Color BUTTON_PRESSED_COLOR = new Color(0, 80, 150); // Windows 11 pressed blue
+    private static final Color TEXT_COLOR = new Color(32, 32, 32);           // Windows 11 text
+    private static final Color MENU_HOVER_COLOR = new Color(237, 237, 237);  // Windows 11 menu hover
+    private static final Font TITLE_FONT = new Font("Segoe UI", Font.BOLD, 14);
+    private static final int CORNER_RADIUS = 8;  // Windows 11 corner radius
+    private static final int TOOLBAR_HEIGHT = 40;
 
     public Window() {
+        setTitle("Praxica");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1024, 768);
+        setLocationRelativeTo(null);
+        setBackground(BACKGROUND_COLOR);
+        
+        // Set the application icon
+        try {
+            // Try multiple ways to load the icon
+            ImageIcon icon = null;
+            
+            // Try loading from classpath
+            URL iconUrl = getClass().getResource("/icon.ico");
+            if (iconUrl != null) {
+                icon = new ImageIcon(iconUrl);
+                System.out.println("Icon loaded from classpath: " + iconUrl);
+            }
+            
+            // If that fails, try loading from file system
+            if (icon == null || icon.getImage() == null) {
+                File iconFile = new File("src/main/resources/icon.ico");
+                if (iconFile.exists()) {
+                    icon = new ImageIcon(iconFile.getAbsolutePath());
+                    System.out.println("Icon loaded from file system: " + iconFile.getAbsolutePath());
+                }
+            }
+            
+            // Set the icon if we found one
+            if (icon != null && icon.getImage() != null) {
+                setIconImage(icon.getImage());
+                System.out.println("Icon set successfully");
+            } else {
+                System.err.println("Could not load icon from any source");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading icon: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         initializeUI();
         setupNetwork();
     }
 
     private void initializeUI() {
-        setTitle("Bayesian Network");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1024, 768);
-        setLocationRelativeTo(null);
-        setBackground(BACKGROUND_COLOR);
-
         // Create main panel with modern look
         mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(BACKGROUND_COLOR);
@@ -99,13 +139,37 @@ public class Window extends JFrame {
     private JMenu createMenu(String title) {
         JMenu menu = new JMenu(title);
         menu.setFont(MENU_FONT);
+        menu.setForeground(TEXT_COLOR);
+        
+        // Add hover effect
+        menu.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                menu.setBackground(MENU_HOVER_COLOR);
+            }
+            public void mouseExited(MouseEvent e) {
+                menu.setBackground(TOOLBAR_COLOR);
+            }
+        });
+        
         return menu;
     }
 
     private JMenuItem createMenuItem(String title, ActionListener listener) {
         JMenuItem item = new JMenuItem(title);
         item.setFont(MENU_FONT);
+        item.setForeground(TEXT_COLOR);
         item.addActionListener(listener);
+        
+        // Add hover effect
+        item.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                item.setBackground(MENU_HOVER_COLOR);
+            }
+            public void mouseExited(MouseEvent e) {
+                item.setBackground(TOOLBAR_COLOR);
+            }
+        });
+        
         return item;
     }
 
@@ -186,9 +250,31 @@ public class Window extends JFrame {
             {0.07, 0.93}, {0.85, 0.15}, {0.62, 0.38}
         });
         
+        // Add nodes to network first
         network.addNode(parent1);
         network.addNode(parent2);
         network.addNode(node);
+
+        // Wait a bit for the views to be created
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Position the nodes in a triangular layout
+        NodeView nodeView = network.getNodeView(node);
+        NodeView parent1View = network.getNodeView(parent1);
+        NodeView parent2View = network.getNodeView(parent2);
+
+        if (nodeView != null && parent1View != null && parent2View != null) {
+            // Center node at the bottom
+            nodeView.setLocation(400, 400);
+            
+            // Parent nodes at the top corners
+            parent1View.setLocation(200, 200);
+            parent2View.setLocation(600, 200);
+        }
     }
 
     private void addNode() {
@@ -323,6 +409,7 @@ public class Window extends JFrame {
     private void showAbout() {
         JDialog aboutDialog = new JDialog(this, "About", true);
         aboutDialog.setLayout(new BorderLayout());
+        aboutDialog.setBackground(BACKGROUND_COLOR);
         
         // Create about content
         JPanel contentPanel = new JPanel();
@@ -331,29 +418,33 @@ public class Window extends JFrame {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
         // Program name
-        JLabel titleLabel = new JLabel("Bayesian Network Editor");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        JLabel titleLabel = new JLabel("Praxica");
+        titleLabel.setFont(TITLE_FONT);
+        titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(titleLabel);
         contentPanel.add(Box.createVerticalStrut(10));
         
         // Version
         JLabel versionLabel = new JLabel("Version 1.0");
-        versionLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        versionLabel.setFont(MENU_FONT);
+        versionLabel.setForeground(TEXT_COLOR);
         versionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(versionLabel);
         contentPanel.add(Box.createVerticalStrut(20));
         
         // Description
         JLabel descLabel = new JLabel("A tool for creating and analyzing Bayesian Networks");
-        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        descLabel.setFont(MENU_FONT);
+        descLabel.setForeground(TEXT_COLOR);
         descLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(descLabel);
         contentPanel.add(Box.createVerticalStrut(20));
         
         // Developer info
-        JLabel devLabel = new JLabel("Developed by: Your Name");
-        devLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JLabel devLabel = new JLabel("Developed by: Fyan102");
+        devLabel.setFont(MENU_FONT);
+        devLabel.setForeground(TEXT_COLOR);
         devLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(devLabel);
         
@@ -367,6 +458,19 @@ public class Window extends JFrame {
         closeButton.setFocusPainted(false);
         closeButton.setBorderPainted(false);
         closeButton.addActionListener(e -> aboutDialog.dispose());
+        
+        // Add hover effect to close button
+        closeButton.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                closeButton.setBackground(BUTTON_HOVER_COLOR);
+            }
+            public void mouseExited(MouseEvent e) {
+                closeButton.setBackground(BUTTON_COLOR);
+            }
+            public void mousePressed(MouseEvent e) {
+                closeButton.setBackground(BUTTON_PRESSED_COLOR);
+            }
+        });
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.setBackground(BACKGROUND_COLOR);
