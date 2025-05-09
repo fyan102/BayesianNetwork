@@ -11,11 +11,14 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Window extends JFrame {
-    private final NetworkController controller;
-    private final NetworkView networkView;
-    private final JPanel mainPanel;
+    private NetworkController controller;
+    private NetworkView networkView;
+    private JPanel toolbar;
+    private JPanel contentPanel;
     
     // Modern UI constants
     private static final Color BACKGROUND_COLOR = new Color(250, 250, 250);
@@ -33,29 +36,31 @@ public class Window extends JFrame {
     private static final int TOOLBAR_HEIGHT = 40;
 
     public Window() {
-        setTitle("Bayesian Network");
+        super("Bayesian Network");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1024, 768);
         setLocationRelativeTo(null);
         setBackground(BACKGROUND_COLOR);
         
         // Initialize components
-        networkView = new NetworkView();
-        controller = new NetworkController(new Network(), networkView);
+        initComponents();
         
         // Setup UI
-        mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(BACKGROUND_COLOR);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        
         setupMenuBar();
-        setupToolBar();
+        setupToolbar();
+        setupContentPanel();
         
-        networkView.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        mainPanel.add(networkView, BorderLayout.CENTER);
-        
-        add(mainPanel);
+        // Load application icon
         loadApplicationIcon();
+        
+        // Create demo network
+        createDemoNetwork();
+    }
+
+    private void initComponents() {
+        // Create network view and controller
+        controller = new NetworkController();
+        networkView = controller.getNetworkView();
     }
 
     private void setupMenuBar() {
@@ -65,10 +70,16 @@ public class Window extends JFrame {
         
         // File menu
         JMenu fileMenu = createMenu("File");
+        JMenuItem newItem = createMenuItem("New", e -> newNetwork());
         JMenuItem openItem = createMenuItem("Open", e -> openFile());
         JMenuItem saveItem = createMenuItem("Save", e -> saveFile());
+        JMenuItem exitItem = createMenuItem("Exit", e -> System.exit(0));
+        
+        fileMenu.add(newItem);
         fileMenu.add(openItem);
         fileMenu.add(saveItem);
+        fileMenu.addSeparator();
+        fileMenu.add(exitItem);
         
         // Node menu
         JMenu nodeMenu = createMenu("Node");
@@ -88,7 +99,7 @@ public class Window extends JFrame {
         JMenuItem aboutItem = createMenuItem("About", e -> showAbout());
         helpMenu.add(helpItem);
         helpMenu.add(aboutItem);
-
+        
         menuBar.add(fileMenu);
         menuBar.add(nodeMenu);
         menuBar.add(networkMenu);
@@ -96,26 +107,37 @@ public class Window extends JFrame {
         setJMenuBar(menuBar);
     }
 
-    private void setupToolBar() {
-        JToolBar toolBar = new JToolBar();
-        toolBar.setFloatable(false);
-        toolBar.setBackground(TOOLBAR_COLOR);
-        toolBar.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+    private void setupToolbar() {
+        toolbar = new JPanel();
+        toolbar.setLayout(new FlowLayout(FlowLayout.LEFT));
+        toolbar.setBackground(TOOLBAR_COLOR);
+        toolbar.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         
+        // Add node button
         JButton addNodeButton = createToolbarButton("Add Node");
         addNodeButton.addActionListener(e -> addNode());
         
+        // Create link button
         JButton createLinkButton = createToolbarButton("Create Link");
         createLinkButton.addActionListener(e -> networkView.toggleLinkCreationMode());
         
+        // Run button
         JButton runButton = createToolbarButton("Run");
         runButton.addActionListener(e -> controller.calculate());
         
-        toolBar.add(addNodeButton);
-        toolBar.add(createLinkButton);
-        toolBar.add(runButton);
+        toolbar.add(addNodeButton);
+        toolbar.add(createLinkButton);
+        toolbar.add(runButton);
         
-        mainPanel.add(toolBar, BorderLayout.NORTH);
+        add(toolbar, BorderLayout.NORTH);
+    }
+
+    private void setupContentPanel() {
+        contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        contentPanel.add(networkView, BorderLayout.CENTER);
+        add(contentPanel, BorderLayout.CENTER);
     }
 
     private JMenu createMenu(String title) {
@@ -156,8 +178,8 @@ public class Window extends JFrame {
     private JButton createToolbarButton(String text) {
         JButton button = new JButton(text);
         button.setFont(BUTTON_FONT);
-        button.setBackground(TOOLBAR_COLOR);
-        button.setForeground(BUTTON_COLOR);
+        button.setBackground(BUTTON_COLOR);
+        button.setForeground(Color.WHITE);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -167,28 +189,24 @@ public class Window extends JFrame {
                 button.setForeground(BUTTON_HOVER_COLOR);
             }
             public void mouseExited(MouseEvent e) {
-                button.setForeground(BUTTON_COLOR);
+                button.setForeground(Color.WHITE);
             }
         });
         
         return button;
     }
 
-    private void loadApplicationIcon() {
-        try {
-            URL iconUrl = getClass().getResource("/icon.ico");
-            if (iconUrl != null) {
-                setIconImage(new ImageIcon(iconUrl).getImage());
-            }
-        } catch (Exception e) {
-            System.err.println("Error loading icon: " + e.getMessage());
-        }
+    private void newNetwork() {
+        controller.clear();
+        networkView.removeAll();
+        networkView.repaint();
     }
 
     private void addNode() {
         String name = JOptionPane.showInputDialog(this, "Enter node name:", "Add Node", JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
-            controller.addNode(name.trim());
+            Node node = new Node(name.trim());
+            controller.addNode(node);
         }
     }
 
@@ -196,10 +214,7 @@ public class Window extends JFrame {
         JFileChooser fileChooser = new JFileChooser();
         if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            controller.loadFromFile(file).ifPresent(network -> {
-                controller.clear();
-                network.getNodes().forEach(node -> controller.addNode(node.getName()));
-            });
+            controller.loadNetwork(file);
         }
     }
 
@@ -207,7 +222,7 @@ public class Window extends JFrame {
         JFileChooser fileChooser = new JFileChooser();
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            controller.saveToFile(file);
+            controller.saveNetwork(file);
         }
     }
 
@@ -293,6 +308,66 @@ public class Window extends JFrame {
         aboutDialog.setSize(400, 300);
         aboutDialog.setLocationRelativeTo(this);
         aboutDialog.setVisible(true);
+    }
+
+    private void createDemoNetwork() {
+        // Create nodes
+        Node rain = new Node("Rain");
+        rain.setStates(List.of("Yes", "No"));
+        rain.setBeliefs(List.of(0.2, 0.8)); // 20% chance of rain
+
+        Node sprinkler = new Node("Sprinkler");
+        sprinkler.setStates(List.of("On", "Off"));
+        sprinkler.setBeliefs(List.of(0.1, 0.9)); // 10% chance sprinkler is on
+
+        Node wetGrass = new Node("Wet Grass");
+        wetGrass.setStates(List.of("Wet", "Dry"));
+        wetGrass.setBeliefs(List.of(0.0, 1.0)); // Initial belief
+
+        // Add nodes to network
+        controller.addNode(rain);
+        controller.addNode(sprinkler);
+        controller.addNode(wetGrass);
+
+        // Create links
+        controller.addEdge(rain, wetGrass);
+        controller.addEdge(sprinkler, wetGrass);
+
+        // Set conditional probabilities
+        List<ArrayList<Double>> rainProbs = new ArrayList<>();
+        rainProbs.add(new ArrayList<>(List.of(0.2, 0.8))); // P(Rain=Yes) = 0.2
+        rainProbs.add(new ArrayList<>(List.of(0.8, 0.2))); // P(Rain=No) = 0.8
+        rain.setProbs(rainProbs);
+
+        List<ArrayList<Double>> sprinklerProbs = new ArrayList<>();
+        sprinklerProbs.add(new ArrayList<>(List.of(0.1, 0.9))); // P(Sprinkler=On) = 0.1
+        sprinklerProbs.add(new ArrayList<>(List.of(0.9, 0.1))); // P(Sprinkler=Off) = 0.9
+        sprinkler.setProbs(sprinklerProbs);
+
+        // P(WetGrass=Wet | Rain=Yes, Sprinkler=On) = 0.99
+        // P(WetGrass=Wet | Rain=Yes, Sprinkler=Off) = 0.9
+        // P(WetGrass=Wet | Rain=No, Sprinkler=On) = 0.9
+        // P(WetGrass=Wet | Rain=No, Sprinkler=Off) = 0.0
+        List<ArrayList<Double>> wetGrassProbs = new ArrayList<>();
+        wetGrassProbs.add(new ArrayList<>(List.of(0.99, 0.01))); // Wet | Rain=Yes, Sprinkler=On
+        wetGrassProbs.add(new ArrayList<>(List.of(0.9, 0.1)));   // Wet | Rain=Yes, Sprinkler=Off
+        wetGrassProbs.add(new ArrayList<>(List.of(0.9, 0.1)));   // Wet | Rain=No, Sprinkler=On
+        wetGrassProbs.add(new ArrayList<>(List.of(0.0, 1.0)));   // Wet | Rain=No, Sprinkler=Off
+        wetGrass.setProbs(wetGrassProbs);
+
+        // Calculate initial beliefs
+        controller.calculate();
+    }
+
+    private void loadApplicationIcon() {
+        try {
+            URL iconUrl = getClass().getResource("/icon.ico");
+            if (iconUrl != null) {
+                setIconImage(new ImageIcon(iconUrl).getImage());
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading icon: " + e.getMessage());
+        }
     }
 
     public static void main(String[] args) {

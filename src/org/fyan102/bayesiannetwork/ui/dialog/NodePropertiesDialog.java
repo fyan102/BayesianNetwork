@@ -5,6 +5,7 @@ import org.fyan102.bayesiannetwork.ui.config.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class NodePropertiesDialog {
@@ -87,7 +88,11 @@ public class NodePropertiesDialog {
             if (node != null) {
                 node.setName(nameField.getText());
                 node.setDescription(descriptionArea.getText());
-                node.setStates(statesModel.elements().asIterator().next());
+                List<String> states = new ArrayList<>();
+                for (int i = 0; i < statesModel.size(); i++) {
+                    states.add(statesModel.getElementAt(i));
+                }
+                node.setStates(states);
                 dialog.dispose();
             }
         });

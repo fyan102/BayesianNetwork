@@ -6,7 +6,10 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
+import java.util.List;
 import org.fyan102.bayesiannetwork.model.Node;
+import org.fyan102.bayesiannetwork.ui.config.UIConfig;
+import java.awt.geom.Point2D;
 
 public class NodeView extends JPanel {
     private JLabel title;
@@ -37,6 +40,7 @@ public class NodeView extends JPanel {
     private static final int NODE_HEIGHT = 50;
     private static final int PADDING = 12;
     private static final int SHADOW_OFFSET = 2;
+    private boolean isDragging;
 
     public NodeView() {
         this(new Node());
@@ -44,24 +48,62 @@ public class NodeView extends JPanel {
 
     public NodeView(Node node) {
         this.node = node;
-        title = new JLabel();
-        states = new ArrayList<>();
-        percents = new ArrayList<>();
+        this.location = new Point(100, 100); // Default position
+        this.states = new ArrayList<>();
+        this.percents = new ArrayList<>();
         
-        setLayout(null);
-        setSize(280, 80);
-        setLocation(200, 150);
-        setBackground(BACKGROUND_COLOR);
+        // Initialize title
+        this.title = new JLabel(node.getName());
+        this.title.setFont(UIConfig.NODE_FONT);
+        this.title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBackground(UIConfig.NODE_BACKGROUND);
         setBorder(BorderFactory.createCompoundBorder(
-            new LineBorder(BORDER_COLOR, 1, true),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+            BorderFactory.createLineBorder(UIConfig.NODE_BORDER),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
         ));
         
-        // Enable anti-aliasing
-        setOpaque(true);
+        // Set initial size
+        setSize(200, 150);
         
-        init();
-        setupMouseListeners();
+        // Add title
+        add(title);
+        
+        // Initialize states and beliefs
+        refresh();
+        
+        // Set initial position
+        setLocation(location);
+        
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                isDragging = true;
+                dragStart = e.getPoint();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                isDragging = false;
+            }
+        });
+
+        addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (isDragging) {
+                    Point newLocation = new Point(
+                        location.x + e.getX() - dragStart.x,
+                        location.y + e.getY() - dragStart.y
+                    );
+                    setLocation(newLocation);
+                    if (getParent() instanceof NetworkView) {
+                        ((NetworkView) getParent()).updateLinks();
+                    }
+                }
+            }
+        });
     }
 
     private void init() {
@@ -236,12 +278,14 @@ public class NodeView extends JPanel {
     
     @Override
     public void repaint() {
-        if (node != null) {
+        if (node != null && title != null) {
             title.setText(node.getName());
             
             for (int i = 0; i < states.size(); i++) {
-                states.get(i).setText(node.getState(i) + ": \t \t " + String.format("%.4f", node.getBelief(i)));
-                percents.get(i).setValue((int)(node.getBelief(i) * 100));
+                if (i < node.getNumberOfStates()) {
+                    states.get(i).setText(node.getState(i) + ": \t \t " + String.format("%.4f", node.getBelief(i)));
+                    percents.get(i).setValue((int)(node.getBelief(i) * 100));
+                }
             }
         }
         
@@ -644,15 +688,14 @@ public class NodeView extends JPanel {
         node.setStates(newStates);
         if (!node.getParents().isEmpty()) {
             // For nodes with parents, initialize beliefs with uniform distribution
-            double[] beliefsArray = new double[newStates.size()];
+            List<Double> beliefs = new ArrayList<>();
             double uniformProb = 1.0 / newStates.size();
-            for (int i = 0; i < beliefsArray.length; i++) {
-                beliefsArray[i] = uniformProb;
+            for (int i = 0; i < newStates.size(); i++) {
+                beliefs.add(uniformProb);
             }
-            node.setBeliefs(beliefsArray);
+            node.setBeliefs(beliefs);
         } else {
-            double[] beliefsArray = newBeliefs.stream().mapToDouble(d -> d).toArray();
-            node.setBeliefs(beliefsArray);
+            node.setBeliefs(newBeliefs);
         }
         
         // Update view
@@ -667,7 +710,7 @@ public class NodeView extends JPanel {
 
     private ArrayList<ArrayList<String>> getParentStateCombinations() {
         ArrayList<ArrayList<String>> combinations = new ArrayList<>();
-        ArrayList<Node> parents = node.getParents();
+        List<Node> parents = node.getParents();
         
         if (parents.isEmpty()) {
             return combinations;
@@ -697,7 +740,7 @@ public class NodeView extends JPanel {
     }
 
     private int getConditionalProbabilityRowIndex(ArrayList<String> combination) {
-        ArrayList<Node> parents = node.getParents();
+        List<Node> parents = node.getParents();
         int rowIndex = 0;
         int multiplier = 1;
         
@@ -735,5 +778,89 @@ public class NodeView extends JPanel {
             this.isSelected = selected;
             repaint();
         }
+    }
+
+    public Point getCenter() {
+        return new Point(
+            location.x + getWidth() / 2,
+            location.y + getHeight() / 2
+        );
+    }
+
+    public Point2D getConnectionPoint(Point target) {
+        Point center = getCenter();
+        double dx = target.x - center.x;
+        double dy = target.y - center.y;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate the point on the node's border
+        double radius = Math.min(getWidth(), getHeight()) / 2.0;
+        double scale = radius / distance;
+        
+        return new Point2D.Double(
+            center.x + dx * scale,
+            center.y + dy * scale
+        );
+    }
+
+    public void refresh() {
+        removeAll();
+        states.clear();
+        percents.clear();
+
+        // Add node name
+        JLabel nameLabel = new JLabel(node.getName());
+        nameLabel.setFont(UIConfig.NODE_FONT);
+        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        add(nameLabel);
+
+        // Add states and beliefs
+        for (int i = 0; i < node.getNumberOfStates(); i++) {
+            JLabel state = new JLabel(node.getState(i) + ": \t \t " + String.format("%.4f", node.getBelief(i)));
+            state.setFont(UIConfig.NODE_FONT);
+            state.setAlignmentX(Component.CENTER_ALIGNMENT);
+            states.add(state);
+            add(state);
+
+            JProgressBar progressBar = new JProgressBar(0, 100);
+            progressBar.setValue((int)(node.getBelief(i) * 100));
+            progressBar.setStringPainted(true);
+            progressBar.setAlignmentX(Component.CENTER_ALIGNMENT);
+            percents.add(progressBar);
+            add(progressBar);
+        }
+
+        revalidate();
+        repaint();
+    }
+
+    public void setLocation(Point location) {
+        this.location = location;
+        super.setBounds(location.x, location.y, getWidth(), getHeight());
+    }
+
+    public void setLocation(int x, int y) {
+        setLocation(new Point(x, y));
+    }
+
+    public Point getLocation() {
+        return location;
+    }
+
+    public void setBeliefs(double[] beliefsArray) {
+        List<Double> beliefs = new ArrayList<>();
+        for (double belief : beliefsArray) {
+            beliefs.add(belief);
+        }
+        node.setBeliefs(beliefs);
+        refresh();
+    }
+
+    public List<Node> getParents() {
+        return new ArrayList<>(node.getParents());
+    }
+
+    public List<Node> getChildren() {
+        return new ArrayList<>(node.getChildren());
     }
 }

@@ -9,9 +9,10 @@ import java.util.Objects;
  */
 public class Node {
     private String name;
+    private String description;
     private List<String> states;
     private List<Double> beliefs;
-    private List<List<Double>> probabilities;
+    private List<ArrayList<Double>> probs;
     private List<Node> parents;
     private List<Node> children;
 
@@ -21,9 +22,10 @@ public class Node {
 
     public Node(String name) {
         this.name = name;
+        this.description = "";
         this.states = new ArrayList<>();
         this.beliefs = new ArrayList<>();
-        this.probabilities = new ArrayList<>();
+        this.probs = new ArrayList<>();
         this.parents = new ArrayList<>();
         this.children = new ArrayList<>();
     }
@@ -37,28 +39,53 @@ public class Node {
         this.name = Objects.requireNonNull(name, "Name cannot be null");
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public List<String> getStates() {
         return new ArrayList<>(states);
     }
 
     public void setStates(List<String> states) {
         this.states = new ArrayList<>(Objects.requireNonNull(states, "States cannot be null"));
+        // Initialize beliefs with uniform distribution
+        this.beliefs = new ArrayList<>();
+        for (int i = 0; i < states.size(); i++) {
+            this.beliefs.add(1.0 / states.size());
+        }
     }
 
-    public List<Double> getBeliefs() {
-        return new ArrayList<>(beliefs);
+    public int getNumberOfStates() {
+        return states.size();
+    }
+
+    public String getState(int index) {
+        return states.get(index);
+    }
+
+    public double getBelief(int index) {
+        return beliefs.get(index);
     }
 
     public void setBeliefs(List<Double> beliefs) {
         this.beliefs = new ArrayList<>(Objects.requireNonNull(beliefs, "Beliefs cannot be null"));
     }
 
-    public List<List<Double>> getProbabilities() {
-        return new ArrayList<>(probabilities);
+    public List<Double> getBeliefs() {
+        return new ArrayList<>(beliefs);
     }
 
-    public void setProbabilities(List<List<Double>> probabilities) {
-        this.probabilities = new ArrayList<>(Objects.requireNonNull(probabilities, "Probabilities cannot be null"));
+    public List<ArrayList<Double>> getProbs() {
+        return new ArrayList<>(probs);
+    }
+
+    public void setProbs(List<ArrayList<Double>> probs) {
+        this.probs = new ArrayList<>(Objects.requireNonNull(probs, "Probabilities cannot be null"));
     }
 
     public List<Node> getParents() {
@@ -127,7 +154,7 @@ public class Node {
 
     private double calculateBelief(int stateIndex) {
         double belief = 0.0;
-        for (List<Double> probabilityRow : probabilities) {
+        for (List<Double> probabilityRow : probs) {
             belief += probabilityRow.get(stateIndex);
         }
         return belief;
@@ -136,6 +163,14 @@ public class Node {
     private void updateProbabilities() {
         // Implementation for updating probabilities based on parent states
         // This is a placeholder - implement based on your specific requirements
+    }
+
+    public boolean hasParent(Node parent) {
+        return parents.contains(parent);
+    }
+
+    public boolean hasChild(Node child) {
+        return children.contains(child);
     }
 
     @Override

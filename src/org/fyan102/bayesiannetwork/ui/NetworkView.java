@@ -5,14 +5,17 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.fyan102.bayesiannetwork.model.Node;
 import org.fyan102.bayesiannetwork.model.Network;
-import java.util.HashMap;
-import java.util.Map;
+import org.fyan102.bayesiannetwork.ui.config.UIConfig;
 
 public class NetworkView extends JPanel implements MouseListener {
+    private final Network network;
     private final Map<Node, NodeView> nodeViews;
-    private final ArrayList<Link> links;
+    private final List<Link> links;
     private boolean linkCreationMode;
     private NodeView sourceNode;
     
@@ -23,50 +26,86 @@ public class NetworkView extends JPanel implements MouseListener {
     private static final Color BUTTON_COLOR = new Color(65, 105, 225); // Royal Blue
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.PLAIN, 12);
 
-    public NetworkView() {
+    public NetworkView(Network network) {
+        this.network = network;
         this.nodeViews = new HashMap<>();
         this.links = new ArrayList<>();
         this.linkCreationMode = false;
         
         setLayout(null);
-        setBackground(BACKGROUND_COLOR);
-        setOpaque(true);
+        setBackground(UIConfig.BACKGROUND_COLOR);
+        setPreferredSize(new Dimension(UIConfig.DEFAULT_WINDOW_WIDTH, UIConfig.DEFAULT_WINDOW_HEIGHT));
         addMouseListener(this);
     }
 
+    public Network getNetwork() {
+        return network;
+    }
+
+    public List<NodeView> getNodes() {
+        return new ArrayList<>(nodeViews.values());
+    }
+
+    public List<Link> getLinks() {
+        return new ArrayList<>(links);
+    }
+
     public void addNode(Node node) {
-        NodeView nodeView = new NodeView(node);
-        nodeViews.put(node, nodeView);
-        add(nodeView);
-        repaint();
+        if (!nodeViews.containsKey(node)) {
+            NodeView nodeView = new NodeView(node);
+            nodeViews.put(node, nodeView);
+            add(nodeView);
+            nodeView.setLocation(100 + nodeViews.size() * 50, 100 + nodeViews.size() * 50);
+            nodeView.setVisible(true);
+            updateLinks();
+            repaint();
+        }
     }
 
     public void removeNode(Node node) {
         NodeView nodeView = nodeViews.remove(node);
         if (nodeView != null) {
             remove(nodeView);
-            // Remove associated links
-            links.removeIf(link -> link.getFrom() == node || link.getTo() == node);
+            links.removeIf(link -> link.getFrom() == nodeView || link.getTo() == nodeView);
+            updateLinks();
             repaint();
         }
     }
 
-    public void addEdge(Node from, Node to) {
+    public void addLink(Node from, Node to) {
         NodeView fromView = nodeViews.get(from);
         NodeView toView = nodeViews.get(to);
         if (fromView != null && toView != null) {
             links.add(new Link(fromView, toView));
+            updateLinks();
             repaint();
         }
     }
 
-    public void removeEdge(Node from, Node to) {
+    public void removeLink(Node from, Node to) {
         NodeView fromView = nodeViews.get(from);
         NodeView toView = nodeViews.get(to);
         if (fromView != null && toView != null) {
             links.removeIf(link -> link.getFrom() == fromView && link.getTo() == toView);
+            updateLinks();
             repaint();
         }
+    }
+
+    public void updateLinks() {
+        links.clear();
+        for (Node node : network.getNodes()) {
+            NodeView nodeView = nodeViews.get(node);
+            if (nodeView != null) {
+                for (Node child : node.getChildren()) {
+                    NodeView childView = nodeViews.get(child);
+                    if (childView != null) {
+                        links.add(new Link(nodeView, childView));
+                    }
+                }
+            }
+        }
+        repaint();
     }
 
     public void toggleLinkCreationMode() {
@@ -107,11 +146,11 @@ public class NetworkView extends JPanel implements MouseListener {
     }
 
     private void drawGrid(Graphics2D g2d) {
-        g2d.setColor(GRID_COLOR);
-        for (int x = 0; x < getWidth(); x += GRID_SIZE) {
+        g2d.setColor(UIConfig.GRID_COLOR);
+        for (int x = 0; x < getWidth(); x += UIConfig.GRID_SIZE) {
             g2d.drawLine(x, 0, x, getHeight());
         }
-        for (int y = 0; y < getHeight(); y += GRID_SIZE) {
+        for (int y = 0; y < getHeight(); y += UIConfig.GRID_SIZE) {
             g2d.drawLine(0, y, getWidth(), y);
         }
     }

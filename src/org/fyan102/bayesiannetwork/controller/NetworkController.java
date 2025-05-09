@@ -6,6 +6,7 @@ import org.fyan102.bayesiannetwork.ui.NetworkView;
 import org.fyan102.bayesiannetwork.util.NetworkFileHandler;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,19 +15,22 @@ import java.util.Optional;
  */
 public class NetworkController {
     private final Network network;
-    private final NetworkView view;
+    private final NetworkView networkView;
     private final NetworkFileHandler fileHandler;
 
-    public NetworkController(Network network, NetworkView view) {
-        this.network = network;
-        this.view = view;
+    public NetworkController() {
+        this.network = new Network();
+        this.networkView = new NetworkView(network);
         this.fileHandler = new NetworkFileHandler();
     }
 
-    public boolean addNode(String name) {
-        Node node = new Node(name);
+    public NetworkView getNetworkView() {
+        return networkView;
+    }
+
+    public boolean addNode(Node node) {
         if (network.addNode(node)) {
-            view.addNode(node);
+            networkView.addNode(node);
             return true;
         }
         return false;
@@ -34,7 +38,7 @@ public class NetworkController {
 
     public boolean removeNode(Node node) {
         if (network.removeNode(node)) {
-            view.removeNode(node);
+            networkView.removeNode(node);
             return true;
         }
         return false;
@@ -42,7 +46,7 @@ public class NetworkController {
 
     public boolean addEdge(Node from, Node to) {
         if (network.addEdge(from, to)) {
-            view.addEdge(from, to);
+            networkView.addLink(from, to);
             return true;
         }
         return false;
@@ -50,26 +54,38 @@ public class NetworkController {
 
     public boolean removeEdge(Node from, Node to) {
         if (network.removeEdge(from, to)) {
-            view.removeEdge(from, to);
+            networkView.removeLink(from, to);
             return true;
         }
         return false;
     }
 
     public boolean calculate() {
-        boolean success = network.calculate();
-        if (success) {
-            view.refresh();
+        if (network.calculate()) {
+            networkView.updateLinks();
+            return true;
         }
-        return success;
+        return false;
     }
 
-    public boolean saveToFile(File file) {
-        return fileHandler.saveNetwork(network, file);
+    public boolean saveNetwork(File file) {
+        try {
+            NetworkFileHandler.saveNetwork(networkView, file);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
-    public Optional<Network> loadFromFile(File file) {
-        return fileHandler.loadNetwork(file);
+    public boolean loadNetwork(File file) {
+        try {
+            NetworkFileHandler.loadNetwork(networkView, file);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public List<Node> getNodes() {

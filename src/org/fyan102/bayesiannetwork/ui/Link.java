@@ -1,96 +1,66 @@
 package org.fyan102.bayesiannetwork.ui;
 
+import org.fyan102.bayesiannetwork.ui.config.UIConfig;
+
 import java.awt.*;
 import java.awt.geom.Line2D;
-import java.awt.geom.Path2D;
-import java.util.ArrayList;
+import java.awt.geom.Point2D;
 
 public class Link {
-    private ArrayList<Point> points;
-    private Path2D arrow;
-    
-    // Modern UI constants
-    private static final Color LINE_COLOR = new Color(100, 100, 100);
-    private static final Color ARROW_COLOR = new Color(100, 100, 100);
-    private static final float LINE_WIDTH = 1.5f;
-    private static final double ARROW_LENGTH = 12;
-    private static final double ARROW_ANGLE = Math.PI / 8;
+    private final NodeView from;
+    private final NodeView to;
+    private final Color color;
+    private final Stroke stroke;
+    private final int arrowSize = 10;
 
-    public Link() {
-        points = new ArrayList<>();
-        arrow = new Path2D.Double();
+    public Link(NodeView from, NodeView to) {
+        this.from = from;
+        this.to = to;
+        this.color = UIConfig.BORDER_COLOR;
+        this.stroke = new BasicStroke(2.0f);
     }
 
-    public Link(Point... points) {
-        this.points = new ArrayList<>();
-        for (Point p : points) {
-            this.points.add(p);
-        }
-        updateArrow();
+    public NodeView getFrom() {
+        return from;
     }
 
-    private void updateArrow() {
-        if (points.size() < 2) return;
-
-        Point end = points.get(points.size() - 1);
-        Point secondEnd = points.get(points.size() - 2);
-        
-        double dx = end.x - secondEnd.x;
-        double dy = end.y - secondEnd.y;
-        double theta = Math.atan2(dy, dx);
-        
-        arrow = new Path2D.Double();
-        arrow.moveTo(end.x, end.y);
-        
-        double x1 = end.x - ARROW_LENGTH * Math.cos(theta + ARROW_ANGLE);
-        double y1 = end.y - ARROW_LENGTH * Math.sin(theta + ARROW_ANGLE);
-        arrow.lineTo(x1, y1);
-        
-        double x2 = end.x - ARROW_LENGTH * Math.cos(theta - ARROW_ANGLE);
-        double y2 = end.y - ARROW_LENGTH * Math.sin(theta - ARROW_ANGLE);
-        arrow.lineTo(x2, y2);
-        
-        arrow.closePath();
+    public NodeView getTo() {
+        return to;
     }
 
     public void draw(Graphics2D g2d) {
-        if (points.size() < 2) return;
-
-        // Save original stroke and color
-        Stroke originalStroke = g2d.getStroke();
-        Color originalColor = g2d.getColor();
-
-        // Set modern style
-        g2d.setStroke(new BasicStroke(LINE_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g2d.setColor(LINE_COLOR);
+        Point2D fromPoint = from.getConnectionPoint(to.getCenter());
+        Point2D toPoint = to.getConnectionPoint(from.getCenter());
 
         // Draw the line
-        for (int i = 0; i < points.size() - 1; i++) {
-            Point p1 = points.get(i);
-            Point p2 = points.get(i + 1);
-            g2d.draw(new Line2D.Double(p1.x, p1.y, p2.x, p2.y));
-        }
+        g2d.setColor(color);
+        g2d.setStroke(stroke);
+        g2d.draw(new Line2D.Double(fromPoint, toPoint));
 
         // Draw the arrow
-        g2d.setColor(ARROW_COLOR);
-        g2d.fill(arrow);
+        double angle = Math.atan2(toPoint.getY() - fromPoint.getY(), toPoint.getX() - fromPoint.getX());
+        double arrowAngle1 = angle - Math.PI / 6;
+        double arrowAngle2 = angle + Math.PI / 6;
 
-        // Restore original stroke and color
-        g2d.setStroke(originalStroke);
-        g2d.setColor(originalColor);
+        int[] xPoints = new int[3];
+        int[] yPoints = new int[3];
+
+        xPoints[0] = (int) toPoint.getX();
+        yPoints[0] = (int) toPoint.getY();
+
+        xPoints[1] = (int) (toPoint.getX() - arrowSize * Math.cos(arrowAngle1));
+        yPoints[1] = (int) (toPoint.getY() - arrowSize * Math.sin(arrowAngle1));
+
+        xPoints[2] = (int) (toPoint.getX() - arrowSize * Math.cos(arrowAngle2));
+        yPoints[2] = (int) (toPoint.getY() - arrowSize * Math.sin(arrowAngle2));
+
+        g2d.fillPolygon(xPoints, yPoints, 3);
     }
 
-    public void addPoint(Point point) {
-        points.add(point);
-        updateArrow();
-    }
-
-    public void setPoints(ArrayList<Point> points) {
-        this.points = points;
-        updateArrow();
-    }
-
-    public ArrayList<Point> getPoints() {
-        return points;
+    public boolean contains(Point point) {
+        Point2D fromPoint = from.getConnectionPoint(to.getCenter());
+        Point2D toPoint = to.getConnectionPoint(from.getCenter());
+        Line2D line = new Line2D.Double(fromPoint, toPoint);
+        return line.ptLineDist(point) < 5;
     }
 }

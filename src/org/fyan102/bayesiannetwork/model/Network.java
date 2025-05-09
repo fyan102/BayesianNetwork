@@ -7,17 +7,36 @@ import java.util.stream.Collectors;
  * Represents a Bayesian Network
  */
 public class Network {
+    private String name;
+    private String description;
     private final Set<Node> nodes;
     private final Map<Node, Set<Node>> adjacencyList;
 
     public Network() {
+        this.name = "New Network";
+        this.description = "";
         this.nodes = new HashSet<>();
         this.adjacencyList = new HashMap<>();
     }
 
-    public Network(Collection<Node> nodes) {
-        this();
-        nodes.forEach(this::addNode);
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<Node> getNodes() {
+        return Collections.unmodifiableList(new ArrayList<>(nodes));
     }
 
     public boolean addNode(Node node) {
@@ -76,10 +95,6 @@ public class Network {
             return true;
         }
         return false;
-    }
-
-    public Set<Node> getNodes() {
-        return Collections.unmodifiableSet(nodes);
     }
 
     public Set<Node> getChildren(Node node) {
@@ -145,37 +160,39 @@ public class Network {
         return true;
     }
 
-    private boolean wouldCreateCycle(Node from, Node to) {
+    public boolean wouldCreateCycle(Node from, Node to) {
         if (from == to) {
             return true;
         }
 
-        Set<Node> visited = new HashSet<>();
-        Set<Node> recursionStack = new HashSet<>();
-        
-        return hasCycle(to, visited, recursionStack);
-    }
-
-    private boolean hasCycle(Node node, Set<Node> visited, Set<Node> recursionStack) {
-        if (recursionStack.contains(node)) {
+        if (to.hasChild(from)) {
             return true;
         }
 
-        if (visited.contains(node)) {
+        List<Node> visited = new ArrayList<>();
+        return hasPathTo(to, from, visited);
+    }
+
+    private boolean hasPathTo(Node start, Node target, List<Node> visited) {
+        if (start == target) {
+            return true;
+        }
+        if (visited.contains(start)) {
             return false;
         }
-
-        visited.add(node);
-        recursionStack.add(node);
-
-        for (Node child : getChildren(node)) {
-            if (hasCycle(child, visited, recursionStack)) {
+        
+        visited.add(start);
+        for (Node child : start.getChildren()) {
+            if (hasPathTo(child, target, visited)) {
                 return true;
             }
         }
-
-        recursionStack.remove(node);
         return false;
+    }
+
+    public void clear() {
+        nodes.clear();
+        adjacencyList.clear();
     }
 
     @Override

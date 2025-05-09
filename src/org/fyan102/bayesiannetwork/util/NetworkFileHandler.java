@@ -175,7 +175,8 @@ public class NetworkFileHandler {
             nodeMap.put(node.getName(), node);
             nodeViewMap.put(node.getName(), nodeView);
             
-            networkView.addNode(nodeView);
+            networkView.addNode(node);
+            networkView.add(nodeView);
         }
 
         // Second pass: Set up parent relationships
@@ -191,11 +192,12 @@ public class NetworkFileHandler {
 
         // Create links
         for (NetworkData.LinkData linkData : networkData.getLinks()) {
-            Link link = new Link();
-            for (NetworkData.PointData pointData : linkData.getPoints()) {
-                link.addPoint(new Point(pointData.getX(), pointData.getY()));
+            NodeView fromView = nodeViewMap.get(linkData.getFromNode());
+            NodeView toView = nodeViewMap.get(linkData.getToNode());
+            if (fromView != null && toView != null) {
+                Link link = new Link(fromView, toView);
+                networkView.getLinks().add(link);
             }
-            networkView.getLinks().add(link);
         }
 
         // Refresh the view
