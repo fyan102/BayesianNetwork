@@ -58,8 +58,16 @@ public class MenuView {
     }
 
     private void initMenu() {
+        // File menu
         addMenu("File", new String[]{"New", "Open", "Close"});
-        addMenu("Node", new String[]{"Chance Node", "Decision Node", "Utility Node"});
+        
+        // Node menu
+        addMenu("Node", new String[]{"Add Chance Node"});
+        
+        // Network menu
+        addMenu("Network", new String[]{"Create Link"});
+        
+        // Run menu
         addMenu("Run", new String[]{"Run"});
     }
 

@@ -29,7 +29,6 @@ public class NetworkView extends JPanel implements MouseListener {
         setLayout(null);
         setBackground(BACKGROUND_COLOR);
         setOpaque(true);
-        setupLinkButton();
     }
 
     public NetworkView(Network network) {
@@ -40,33 +39,21 @@ public class NetworkView extends JPanel implements MouseListener {
         setBackground(BACKGROUND_COLOR);
         setOpaque(true);
         initNetwork();
-        setupLinkButton();
     }
 
-    private void setupLinkButton() {
-        JButton linkButton = new JButton("Create Link");
-        linkButton.setFont(BUTTON_FONT);
-        linkButton.setBackground(BUTTON_COLOR);
-        linkButton.setForeground(Color.WHITE);
-        linkButton.setFocusPainted(false);
-        linkButton.setBorderPainted(false);
-        linkButton.setBounds(10, 10, 100, 30);
-        
-        linkButton.addActionListener(e -> {
-            linkCreationMode = !linkCreationMode;
-            if (linkCreationMode) {
-                linkButton.setText("Cancel Link");
-                linkButton.setBackground(new Color(220, 53, 69)); // Red
-                setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
-            } else {
-                linkButton.setText("Create Link");
-                linkButton.setBackground(BUTTON_COLOR);
-                setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-                sourceNode = null;
-            }
-        });
-        
-        add(linkButton);
+    public void toggleLinkCreationMode() {
+        linkCreationMode = !linkCreationMode;
+        if (linkCreationMode) {
+            setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+        } else {
+            setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            sourceNode = null;
+        }
+        repaint();
+    }
+
+    public boolean isLinkCreationMode() {
+        return linkCreationMode;
     }
 
     public void addNode(NodeView node) {
@@ -259,13 +246,6 @@ public class NetworkView extends JPanel implements MouseListener {
             linkCreationMode = false;
             sourceNode = null;
             setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-            for (Component comp : getComponents()) {
-                if (comp instanceof JButton) {
-                    JButton button = (JButton) comp;
-                    button.setText("Create Link");
-                    button.setBackground(BUTTON_COLOR);
-                }
-            }
         }
     }
 
