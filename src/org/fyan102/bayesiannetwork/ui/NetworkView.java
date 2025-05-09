@@ -1,8 +1,10 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.ui;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import org.fyan102.bayesiannetwork.model.Node;
+import org.fyan102.bayesiannetwork.model.Network;
 
 public class NetworkView extends JPanel {
     private ArrayList<NodeView> nodes;
@@ -41,11 +43,6 @@ public class NetworkView extends JPanel {
     }
 
     public void addNode(Node node) {
-        if (node.getNumberOfStates() == 0) {
-            node.addState("true");
-            node.addState("false");
-            node.setBeliefs(new double[]{0.5, 0.5});
-        }
         network.addNode(node);
         NodeView nodeView = new NodeView(node);
         nodes.add(nodeView);

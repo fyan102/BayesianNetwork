@@ -1,4 +1,4 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.model;
 
 import java.util.ArrayList;
 
@@ -399,24 +399,27 @@ public class Node {
      * update the table of believes
      */
     public void updateBelieves() {
+        if (parents.isEmpty()) {
+            // For nodes without parents, beliefs are already set
+            return;
+        }
+
         ArrayList<ArrayList<Integer>> indices = getPermutation(getParents().size());
-        if (parents.size() > 0) {
-            for (int i = 0; i < states.size(); i++) //ith state of this node
-            {
-                double belief = 0;
-                for (int j = 0; j < indices.size(); j++) // jth permutation
-                {
-                    double prob = probs.get(j).get(i);
-                    for (int k = 0; k < indices.get(j).size(); k++) // kth parent
-                    {
-                        // indices.get(j) is jth permutation
-                        // indices.get(j).get(k) is the number of state of the kth parent
-                        prob *= getParent(k).beliefs.get(indices.get(j).get(k));
-                    }
-                    belief += prob;
+        for (int i = 0; i < states.size(); i++) { // ith state of this node
+            double belief = 0;
+            for (int j = 0; j < indices.size(); j++) { // jth permutation
+                double prob = probs.get(j).get(i);
+                double parentProb = 1.0;
+                
+                for (int k = 0; k < indices.get(j).size(); k++) { // kth parent
+                    Node parent = getParent(k);
+                    int parentStateIndex = indices.get(j).get(k);
+                    parentProb *= parent.getBelief(parentStateIndex);
                 }
-                beliefs.set(i, belief);
+                
+                belief += prob * parentProb;
             }
+            beliefs.set(i, belief);
         }
     }
 

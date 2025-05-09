@@ -1,4 +1,4 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.ui;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -6,6 +6,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
+import org.fyan102.bayesiannetwork.model.Node;
+import org.fyan102.bayesiannetwork.model.Network;
 import org.fyan102.bayesiannetwork.util.NetworkFileHandler;
 
 public class Window extends JFrame {

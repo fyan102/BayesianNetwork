@@ -1,4 +1,4 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.model;
 
 import java.util.ArrayList;
 

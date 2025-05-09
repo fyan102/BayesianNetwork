@@ -1,4 +1,4 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.ui;
 
 import java.awt.*;
 import java.awt.geom.Line2D;

@@ -1,10 +1,11 @@
-package org.fyan102.bayesiannetwork;
+package org.fyan102.bayesiannetwork.ui;
 
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
+import org.fyan102.bayesiannetwork.model.Node;
 
 public class NodeView extends JPanel {
     private JLabel title;
@@ -178,7 +179,7 @@ public class NodeView extends JPanel {
             title.setText(node.getName());
             
             for (int i = 0; i < states.size(); i++) {
-                states.get(i).setText(node.getState(i) + "\t\t" + String.format("%.4f", node.getBelief(i)));
+                states.get(i).setText(node.getState(i) + ": \t \t " + String.format("%.4f", node.getBelief(i)));
                 percents.get(i).setValue((int)(node.getBelief(i) * 100));
             }
         }
@@ -267,6 +268,20 @@ public class NodeView extends JPanel {
             mainPanel.add(Box.createVerticalStrut(20));
             JPanel condProbsPanel = createConditionalProbabilitiesPanel();
             mainPanel.add(condProbsPanel);
+        } else {
+            // Only show probability fields for nodes without parents
+            for (JPanel statePanel : statePanels) {
+                Component[] components = statePanel.getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof JTextField) {
+                        JTextField textField = (JTextField) comp;
+                        if (textField.getText().contains(":")) {
+                            // This is the probability field
+                            textField.setVisible(true);
+                        }
+                    }
+                }
+            }
         }
         
         // Buttons panel with modern styling
@@ -321,6 +336,9 @@ public class NodeView extends JPanel {
             beliefField.setText(String.format("%.2f", node.getBelief(index)));
         }
         
+        // Hide probability field if node has parents
+        beliefField.setVisible(node.getParents().isEmpty());
+        
         JButton removeButton = new JButton("×");
         removeButton.setFont(new Font("Arial", Font.BOLD, 12));
         removeButton.setPreferredSize(new Dimension(20, 20));
@@ -341,6 +359,7 @@ public class NodeView extends JPanel {
         JLabel probLabel = new JLabel("Probability:");
         probLabel.setFont(STATE_FONT);
         probLabel.setForeground(STATE_COLOR);
+        probLabel.setVisible(node.getParents().isEmpty());
         
         panel.add(stateLabel);
         panel.add(stateField);
@@ -462,7 +481,7 @@ public class NodeView extends JPanel {
     }
 
     private boolean validateAndSaveStateChanges(ArrayList<JPanel> statePanels) {
-        // Validate and collect states and beliefs
+        // Validate and collect states
         ArrayList<String> newStates = new ArrayList<>();
         ArrayList<Double> newBeliefs = new ArrayList<>();
         
@@ -475,44 +494,58 @@ public class NodeView extends JPanel {
                 if (comp instanceof JTextField) {
                     if (stateField == null) {
                         stateField = (JTextField) comp;
-                    } else {
+                    } else if (comp.isVisible()) {
                         beliefField = (JTextField) comp;
                     }
                 }
             }
             
-            if (stateField != null && beliefField != null) {
+            if (stateField != null) {
                 String stateName = stateField.getText().trim();
                 if (!stateName.isEmpty()) {
                     newStates.add(stateName);
-                    try {
-                        double belief = Double.parseDouble(beliefField.getText());
-                        newBeliefs.add(belief);
-                    } catch (NumberFormatException ex) {
-                        JOptionPane.showMessageDialog(this,
-                            "Invalid probability value: " + beliefField.getText(),
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE);
-                        return false;
+                    if (beliefField != null) {
+                        try {
+                            double belief = Double.parseDouble(beliefField.getText());
+                            newBeliefs.add(belief);
+                        } catch (NumberFormatException ex) {
+                            JOptionPane.showMessageDialog(this,
+                                "Invalid probability value: " + beliefField.getText(),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                            return false;
+                        }
                     }
                 }
             }
         }
         
-        // Validate probabilities sum to 1
-        double sum = newBeliefs.stream().mapToDouble(d -> d).sum();
-        if (Math.abs(sum - 1.0) > 0.0001) {
-            JOptionPane.showMessageDialog(this,
-                "Probabilities must sum to 1. Current sum: " + String.format("%.2f", sum),
-                "Validation Error",
-                JOptionPane.WARNING_MESSAGE);
-            return false;
+        // Only validate probabilities for nodes without parents
+        if (node.getParents().isEmpty()) {
+            double sum = newBeliefs.stream().mapToDouble(d -> d).sum();
+            if (Math.abs(sum - 1.0) > 0.0001) {
+                JOptionPane.showMessageDialog(this,
+                    "Probabilities must sum to 1. Current sum: " + String.format("%.2f", sum),
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+                return false;
+            }
         }
         
         // Update node
         node.setStates(newStates);
-        double[] beliefsArray = newBeliefs.stream().mapToDouble(d -> d).toArray();
-        node.setBeliefs(beliefsArray);
+        if (!node.getParents().isEmpty()) {
+            // For nodes with parents, initialize beliefs with uniform distribution
+            double[] beliefsArray = new double[newStates.size()];
+            double uniformProb = 1.0 / newStates.size();
+            for (int i = 0; i < beliefsArray.length; i++) {
+                beliefsArray[i] = uniformProb;
+            }
+            node.setBeliefs(beliefsArray);
+        } else {
+            double[] beliefsArray = newBeliefs.stream().mapToDouble(d -> d).toArray();
+            node.setBeliefs(beliefsArray);
+        }
         
         // Update view
         removeAll();

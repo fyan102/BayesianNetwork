@@ -3,10 +3,10 @@ package org.fyan102.bayesiannetwork.util;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.fyan102.bayesiannetwork.model.NetworkData;
-import org.fyan102.bayesiannetwork.Node;
-import org.fyan102.bayesiannetwork.NodeView;
-import org.fyan102.bayesiannetwork.Link;
-import org.fyan102.bayesiannetwork.NetworkView;
+import org.fyan102.bayesiannetwork.model.Node;
+import org.fyan102.bayesiannetwork.ui.NodeView;
+import org.fyan102.bayesiannetwork.ui.NetworkView;
+import org.fyan102.bayesiannetwork.ui.Link;
 
 import java.awt.Point;
 import java.io.File;
