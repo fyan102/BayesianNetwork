@@ -2,6 +2,7 @@ package org.fyan102.bayesiannetwork.ui;
 
 import javax.swing.*;
 import javax.swing.border.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
@@ -143,6 +144,39 @@ public class NodeView extends JPanel {
         propertyItem.setFont(STATE_FONT);
         propertyItem.addActionListener(e -> showPropertyDialog());
         popup.add(propertyItem);
+        
+        // Add link creation menu items
+        if (getParent() instanceof NetworkView) {
+            NetworkView networkView = (NetworkView) getParent();
+            JMenu addLinkMenu = new JMenu("Add Link From");
+            addLinkMenu.setFont(STATE_FONT);
+            
+            for (NodeView otherNode : networkView.getNodes()) {
+                if (otherNode != this && !node.getParents().contains(otherNode.getNode())) {
+                    JMenuItem linkItem = new JMenuItem(otherNode.getNode().getName());
+                    linkItem.setFont(STATE_FONT);
+                    linkItem.addActionListener(e -> {
+                        if (networkView.getNetwork().wouldCreateCycle(otherNode.getNode(), node)) {
+                            JOptionPane.showMessageDialog(this,
+                                "Cannot create link: would create a cycle in the network",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                        } else {
+                            node.addParent(otherNode.getNode());
+                            networkView.updateLinks();
+                            repaint();
+                        }
+                    });
+                    addLinkMenu.add(linkItem);
+                }
+            }
+            
+            if (addLinkMenu.getItemCount() > 0) {
+                popup.addSeparator();
+                popup.add(addLinkMenu);
+            }
+        }
+        
         popup.show(this, x, y);
     }
 
@@ -371,8 +405,7 @@ public class NodeView extends JPanel {
     }
 
     private JPanel createConditionalProbabilitiesPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(BORDER_COLOR),
             "Conditional Probabilities",
@@ -383,55 +416,226 @@ public class NodeView extends JPanel {
         ));
         panel.setBackground(BACKGROUND_COLOR);
         
-        // Create a table for conditional probabilities
-        ArrayList<ArrayList<JTextField>> probFields = new ArrayList<>();
-        
         // Get all possible parent state combinations
         ArrayList<ArrayList<String>> parentStateCombinations = getParentStateCombinations();
         
-        for (ArrayList<String> combination : parentStateCombinations) {
-            JPanel rowPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            rowPanel.setBackground(BACKGROUND_COLOR);
-            
-            // Add condition label
-            StringBuilder conditionLabel = new StringBuilder("If ");
-            for (int i = 0; i < node.getParents().size(); i++) {
-                if (i > 0) conditionLabel.append(" AND ");
-                conditionLabel.append(node.getParents().get(i).getName())
-                            .append(" = ")
-                            .append(combination.get(i));
-            }
-            conditionLabel.append(":");
-            
-            JLabel label = new JLabel(conditionLabel.toString());
-            label.setFont(STATE_FONT);
-            label.setForeground(STATE_COLOR);
-            rowPanel.add(label);
-            
-            // Add probability fields for each state
-            ArrayList<JTextField> rowFields = new ArrayList<>();
-            for (int i = 0; i < node.getNumberOfStates(); i++) {
-                JTextField probField = new JTextField(5);
-                probField.setFont(STATE_FONT);
-                
-                // Set initial value if available
-                int rowIndex = getConditionalProbabilityRowIndex(combination);
-                if (rowIndex >= 0 && rowIndex < node.getProbs().size() && 
-                    i < node.getProbs().get(rowIndex).size()) {
-                    probField.setText(String.format("%.2f", node.getProbs().get(rowIndex).get(i)));
-                }
-                
-                rowFields.add(probField);
-                rowPanel.add(new JLabel(node.getState(i) + ":"));
-                rowPanel.add(probField);
-            }
-            
-            probFields.add(rowFields);
-            panel.add(rowPanel);
-            panel.add(Box.createVerticalStrut(10));
+        // Create column names
+        String[] columnNames = new String[node.getNumberOfStates() + 1];
+        columnNames[0] = "Condition";
+        for (int i = 0; i < node.getNumberOfStates(); i++) {
+            columnNames[i + 1] = node.getState(i);
         }
         
+        // Create table data
+        Object[][] data = new Object[parentStateCombinations.size()][node.getNumberOfStates() + 1];
+        for (int i = 0; i < parentStateCombinations.size(); i++) {
+            ArrayList<String> combination = parentStateCombinations.get(i);
+            
+            // Create condition text
+            StringBuilder conditionText = new StringBuilder("If ");
+            for (int j = 0; j < node.getParents().size(); j++) {
+                if (j > 0) conditionText.append(" AND ");
+                conditionText.append(node.getParents().get(j).getName())
+                           .append(" = ")
+                           .append(combination.get(j));
+            }
+            data[i][0] = conditionText.toString();
+            
+            // Add probability values
+            int rowIndex = getConditionalProbabilityRowIndex(combination);
+            if (rowIndex >= 0 && rowIndex < node.getProbs().size()) {
+                ArrayList<Double> probs = node.getProbs().get(rowIndex);
+                for (int j = 0; j < node.getNumberOfStates(); j++) {
+                    if (j < probs.size()) {
+                        data[i][j + 1] = String.format("%.2f", probs.get(j));
+                    } else {
+                        data[i][j + 1] = "0.00";
+                    }
+                }
+            }
+        }
+        
+        // Create table with custom model
+        DefaultTableModel model = new DefaultTableModel(data, columnNames) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                // Make only probability columns editable
+                return column > 0;
+            }
+        };
+        JTable table = new JTable(model);
+        
+        table.setFont(STATE_FONT);
+        table.setRowHeight(25);
+        table.setGridColor(BORDER_COLOR);
+        table.setShowGrid(true);
+        table.setShowHorizontalLines(true);
+        table.setShowVerticalLines(true);
+        
+        // Style header
+        table.getTableHeader().setFont(TITLE_FONT);
+        table.getTableHeader().setBackground(BACKGROUND_COLOR);
+        table.getTableHeader().setForeground(TITLE_COLOR);
+        
+        // Make first column wider
+        table.getColumnModel().getColumn(0).setPreferredWidth(200);
+        
+        // Add table to scroll pane
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Add validation button
+        JButton validateButton = new JButton("Validate Probabilities");
+        validateButton.setFont(BUTTON_FONT);
+        validateButton.setBackground(BUTTON_COLOR);
+        validateButton.setForeground(Color.WHITE);
+        validateButton.setFocusPainted(false);
+        validateButton.setBorderPainted(false);
+        validateButton.addActionListener(e -> validateProbabilities(table));
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(BACKGROUND_COLOR);
+        buttonPanel.add(validateButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
         return panel;
+    }
+    
+    private void validateProbabilities(JTable table) {
+        boolean valid = true;
+        StringBuilder errorMessage = new StringBuilder();
+        
+        // Check each row
+        for (int i = 0; i < table.getRowCount(); i++) {
+            double sum = 0.0;
+            for (int j = 1; j < table.getColumnCount(); j++) {
+                try {
+                    String value = table.getValueAt(i, j).toString();
+                    double prob = Double.parseDouble(value);
+                    if (prob < 0 || prob > 1) {
+                        valid = false;
+                        errorMessage.append(String.format("Row %d: Probability must be between 0 and 1\n", i + 1));
+                    }
+                    sum += prob;
+                } catch (NumberFormatException ex) {
+                    valid = false;
+                    errorMessage.append(String.format("Row %d: Invalid probability value\n", i + 1));
+                }
+            }
+            
+            if (Math.abs(sum - 1.0) > 0.0001) {
+                valid = false;
+                errorMessage.append(String.format("Row %d: Probabilities must sum to 1 (current sum: %.2f)\n", 
+                    i + 1, sum));
+            }
+        }
+        
+        if (!valid) {
+            JOptionPane.showMessageDialog(this,
+                errorMessage.toString(),
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                "All probabilities are valid!",
+                "Validation Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private boolean validateAndSaveStateChanges(ArrayList<JPanel> statePanels) {
+        // Validate and collect states
+        ArrayList<String> newStates = new ArrayList<>();
+        ArrayList<Double> newBeliefs = new ArrayList<>();
+        
+        for (JPanel statePanel : statePanels) {
+            Component[] components = statePanel.getComponents();
+            JTextField stateField = null;
+            JTextField beliefField = null;
+            
+            for (Component comp : components) {
+                if (comp instanceof JTextField) {
+                    if (stateField == null) {
+                        stateField = (JTextField) comp;
+                    } else if (comp.isVisible()) {
+                        beliefField = (JTextField) comp;
+                    }
+                }
+            }
+            
+            if (stateField != null) {
+                String stateName = stateField.getText().trim();
+                if (!stateName.isEmpty()) {
+                    newStates.add(stateName);
+                    if (beliefField != null) {
+                        try {
+                            double belief = Double.parseDouble(beliefField.getText());
+                            newBeliefs.add(belief);
+                        } catch (NumberFormatException ex) {
+                            JOptionPane.showMessageDialog(this,
+                                "Invalid probability value: " + beliefField.getText(),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Validate that we have at least one state
+        if (newStates.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "At least one state is required",
+                "Validation Error",
+                JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        // Only validate probabilities for nodes without parents
+        if (node.getParents().isEmpty()) {
+            // If no beliefs were provided, initialize with uniform distribution
+            if (newBeliefs.isEmpty()) {
+                double uniformProb = 1.0 / newStates.size();
+                for (int i = 0; i < newStates.size(); i++) {
+                    newBeliefs.add(uniformProb);
+                }
+            } else {
+                double sum = newBeliefs.stream().mapToDouble(d -> d).sum();
+                if (Math.abs(sum - 1.0) > 0.0001) {
+                    JOptionPane.showMessageDialog(this,
+                        "Probabilities must sum to 1. Current sum: " + String.format("%.2f", sum),
+                        "Validation Error",
+                        JOptionPane.WARNING_MESSAGE);
+                    return false;
+                }
+            }
+        }
+        
+        // Update node
+        node.setStates(newStates);
+        if (!node.getParents().isEmpty()) {
+            // For nodes with parents, initialize beliefs with uniform distribution
+            double[] beliefsArray = new double[newStates.size()];
+            double uniformProb = 1.0 / newStates.size();
+            for (int i = 0; i < beliefsArray.length; i++) {
+                beliefsArray[i] = uniformProb;
+            }
+            node.setBeliefs(beliefsArray);
+        } else {
+            double[] beliefsArray = newBeliefs.stream().mapToDouble(d -> d).toArray();
+            node.setBeliefs(beliefsArray);
+        }
+        
+        // Update view
+        removeAll();
+        states.clear();
+        percents.clear();
+        init();
+        repaint();
+        
+        return true;
     }
 
     private ArrayList<ArrayList<String>> getParentStateCombinations() {
@@ -478,82 +682,5 @@ public class NodeView extends JPanel {
         }
         
         return rowIndex;
-    }
-
-    private boolean validateAndSaveStateChanges(ArrayList<JPanel> statePanels) {
-        // Validate and collect states
-        ArrayList<String> newStates = new ArrayList<>();
-        ArrayList<Double> newBeliefs = new ArrayList<>();
-        
-        for (JPanel statePanel : statePanels) {
-            Component[] components = statePanel.getComponents();
-            JTextField stateField = null;
-            JTextField beliefField = null;
-            
-            for (Component comp : components) {
-                if (comp instanceof JTextField) {
-                    if (stateField == null) {
-                        stateField = (JTextField) comp;
-                    } else if (comp.isVisible()) {
-                        beliefField = (JTextField) comp;
-                    }
-                }
-            }
-            
-            if (stateField != null) {
-                String stateName = stateField.getText().trim();
-                if (!stateName.isEmpty()) {
-                    newStates.add(stateName);
-                    if (beliefField != null) {
-                        try {
-                            double belief = Double.parseDouble(beliefField.getText());
-                            newBeliefs.add(belief);
-                        } catch (NumberFormatException ex) {
-                            JOptionPane.showMessageDialog(this,
-                                "Invalid probability value: " + beliefField.getText(),
-                                "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Only validate probabilities for nodes without parents
-        if (node.getParents().isEmpty()) {
-            double sum = newBeliefs.stream().mapToDouble(d -> d).sum();
-            if (Math.abs(sum - 1.0) > 0.0001) {
-                JOptionPane.showMessageDialog(this,
-                    "Probabilities must sum to 1. Current sum: " + String.format("%.2f", sum),
-                    "Validation Error",
-                    JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-        }
-        
-        // Update node
-        node.setStates(newStates);
-        if (!node.getParents().isEmpty()) {
-            // For nodes with parents, initialize beliefs with uniform distribution
-            double[] beliefsArray = new double[newStates.size()];
-            double uniformProb = 1.0 / newStates.size();
-            for (int i = 0; i < beliefsArray.length; i++) {
-                beliefsArray[i] = uniformProb;
-            }
-            node.setBeliefs(beliefsArray);
-        } else {
-            double[] beliefsArray = newBeliefs.stream().mapToDouble(d -> d).toArray();
-            node.setBeliefs(beliefsArray);
-        }
-        
-        // Update view
-        removeAll();
-        states.clear();
-        percents.clear();
-        init();
-        repaint();
-        
-        return true;
     }
 }

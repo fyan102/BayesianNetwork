@@ -11,6 +11,7 @@ public class Node {
     private ArrayList<Double> beliefs;
     private ArrayList<ArrayList<Double>> probs;
     private ArrayList<Node> parents;
+    private ArrayList<Node> children;
 
     /**
      * Constructor of Node class. The default name is "NewNode"
@@ -21,6 +22,7 @@ public class Node {
         setBeliefs(new ArrayList<>());
         setProbs(new ArrayList<>());
         setParents(new ArrayList<>());
+        setChildren(new ArrayList<>());
     }
 
     /**
@@ -34,6 +36,7 @@ public class Node {
         setBeliefs(new ArrayList<>());
         setProbs(new ArrayList<>());
         setParents(new ArrayList<>());
+        setChildren(new ArrayList<>());
     }
 
     /**
@@ -45,7 +48,8 @@ public class Node {
     public boolean addParent(Node parent) {
         if (!parents.contains(parent) && parent != this) {
             parents.add(parent);
-            resizeProbs();
+            parent.addChild(this);
+            convertToConditionalProbabilities();
             return true;
         }
         else {
@@ -84,7 +88,8 @@ public class Node {
         int index = parents.indexOf(parent);
         if (index >= 0) {
             parents.remove(index);
-            resizeProbs();
+            parent.removeChild(this);
+            convertToSimpleProbabilities();
             return true;
         }
         return false;
@@ -284,7 +289,13 @@ public class Node {
      */
     public void setBeliefs(double[] beliefs) {
         for (int i = 0; i < beliefs.length; i++) {
-            this.beliefs.set(i, beliefs[i]);
+            System.out.println("Belief "+i+" is "+beliefs[i]);
+            if (this.beliefs.size() > i) {
+                this.beliefs.set(i, beliefs[i]);
+            }
+            else {
+                this.beliefs.add(beliefs[i]);
+            }
         }
     }
 
@@ -421,6 +432,76 @@ public class Node {
             }
             beliefs.set(i, belief);
         }
+    }
+
+    private void convertToConditionalProbabilities() {
+        if (parents.isEmpty()) {
+            return;
+        }
+
+        // Calculate number of combinations
+        int combinations = 1;
+        for (Node parent : parents) {
+            combinations *= parent.getNumberOfStates();
+        }
+
+        // Create new probability table
+        ArrayList<ArrayList<Double>> newProbs = new ArrayList<>();
+        for (int i = 0; i < combinations; i++) {
+            ArrayList<Double> row = new ArrayList<>();
+            for (int j = 0; j < states.size(); j++) {
+                // Initialize with uniform distribution
+                row.add(1.0 / states.size());
+            }
+            newProbs.add(row);
+        }
+
+        // If we had simple probabilities, distribute them
+        if (!probs.isEmpty() && probs.get(0).size() == states.size()) {
+            ArrayList<Double> oldProbs = probs.get(0);
+            for (int i = 0; i < combinations; i++) {
+                newProbs.set(i, new ArrayList<>(oldProbs));
+            }
+        }
+
+        probs = newProbs;
+    }
+
+    private void convertToSimpleProbabilities() {
+        if (!parents.isEmpty()) {
+            return;
+        }
+
+        // Convert to simple probabilities by averaging
+        ArrayList<Double> simpleProbs = new ArrayList<>();
+        for (int i = 0; i < states.size(); i++) {
+            double sum = 0;
+            for (ArrayList<Double> row : probs) {
+                sum += row.get(i);
+            }
+            simpleProbs.add(sum / probs.size());
+        }
+
+        probs.clear();
+        probs.add(simpleProbs);
+    }
+
+    public void addChild(Node child) {
+        if (!children.contains(child)) {
+            children.add(child);
+        }
+    }
+
+    public void removeChild(Node child) {
+        children.remove(child);
+    }
+
+    public ArrayList<Node> getChildren() {
+        return children;
+    }
+
+    public void setChildren(ArrayList<Node> children) {
+        this.children = children;
     }
 
 }
