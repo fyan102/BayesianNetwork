@@ -7,13 +7,14 @@ import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import org.fyan102.bayesiannetwork.model.Node;
 import org.fyan102.bayesiannetwork.model.Network;
+import java.util.HashMap;
+import java.util.Map;
 
 public class NetworkView extends JPanel implements MouseListener {
-    private ArrayList<NodeView> nodes;
-    private Network network;
-    private ArrayList<Link> links;
-    private boolean linkCreationMode = false;
-    private NodeView sourceNode = null;
+    private final Map<Node, NodeView> nodeViews;
+    private final ArrayList<Link> links;
+    private boolean linkCreationMode;
+    private NodeView sourceNode;
     
     // Modern UI constants
     private static final Color BACKGROUND_COLOR = new Color(250, 250, 250);
@@ -23,22 +24,49 @@ public class NetworkView extends JPanel implements MouseListener {
     private static final Font BUTTON_FONT = new Font("Segoe UI", Font.PLAIN, 12);
 
     public NetworkView() {
-        nodes = new ArrayList<>();
-        network = new Network();
-        links = new ArrayList<>();
+        this.nodeViews = new HashMap<>();
+        this.links = new ArrayList<>();
+        this.linkCreationMode = false;
+        
         setLayout(null);
         setBackground(BACKGROUND_COLOR);
         setOpaque(true);
+        addMouseListener(this);
     }
 
-    public NetworkView(Network network) {
-        nodes = new ArrayList<>();
-        links = new ArrayList<>();
-        this.network = network;
-        setLayout(null);
-        setBackground(BACKGROUND_COLOR);
-        setOpaque(true);
-        initNetwork();
+    public void addNode(Node node) {
+        NodeView nodeView = new NodeView(node);
+        nodeViews.put(node, nodeView);
+        add(nodeView);
+        repaint();
+    }
+
+    public void removeNode(Node node) {
+        NodeView nodeView = nodeViews.remove(node);
+        if (nodeView != null) {
+            remove(nodeView);
+            // Remove associated links
+            links.removeIf(link -> link.getFrom() == node || link.getTo() == node);
+            repaint();
+        }
+    }
+
+    public void addEdge(Node from, Node to) {
+        NodeView fromView = nodeViews.get(from);
+        NodeView toView = nodeViews.get(to);
+        if (fromView != null && toView != null) {
+            links.add(new Link(fromView, toView));
+            repaint();
+        }
+    }
+
+    public void removeEdge(Node from, Node to) {
+        NodeView fromView = nodeViews.get(from);
+        NodeView toView = nodeViews.get(to);
+        if (fromView != null && toView != null) {
+            links.removeIf(link -> link.getFrom() == fromView && link.getTo() == toView);
+            repaint();
+        }
     }
 
     public void toggleLinkCreationMode() {
@@ -56,58 +84,8 @@ public class NetworkView extends JPanel implements MouseListener {
         return linkCreationMode;
     }
 
-    public void addNode(NodeView node) {
-        nodes.add(node);
-        network.addNode(node.getNode());
-        add(node);
-        repaint();
-    }
-
-    public void addNode(Node node) {
-        network.addNode(node);
-        NodeView nodeView = new NodeView(node);
-        nodes.add(nodeView);
-        add(nodeView);
-        repaint();
-    }
-
-    public void calculate() {
-        network.calculate();
-        // Update all nodes
-        for (NodeView nodeView : nodes) {
-            nodeView.repaint();
-        }
-        repaint();
-        System.out.println(network);
-    }
-
-    public ArrayList<Link> getLinks() {
-        return links;
-    }
-
-    public Network getNetwork() {
-        return network;
-    }
-
-    public NodeView getNode(int index) {
-        return nodes.get(index);
-    }
-
-    public ArrayList<NodeView> getNodes() {
-        return nodes;
-    }
-
-    private void initNetwork() {
-        for (Node node : network.getNodes()) {
-            NodeView nodeView = new NodeView(node);
-            nodes.add(nodeView);
-            add(nodeView);
-        }
-    }
-
-    public void removeNode(NodeView node) {
-        nodes.remove(node);
-        remove(node);
+    public void refresh() {
+        nodeViews.values().forEach(NodeView::refresh);
         repaint();
     }
 
@@ -118,7 +96,6 @@ public class NetworkView extends JPanel implements MouseListener {
         
         // Enable anti-aliasing
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         
         // Draw grid
         drawGrid(g2d);
@@ -127,188 +104,63 @@ public class NetworkView extends JPanel implements MouseListener {
         for (Link link : links) {
             link.draw(g2d);
         }
-
-        // Draw temporary link if in link creation mode
-        if (linkCreationMode && sourceNode != null) {
-            Point mousePos = getMousePosition();
-            if (mousePos != null) {
-                Point from = calculateConnectionPoint(sourceNode, null);
-                g2d.setColor(BUTTON_COLOR);
-                g2d.setStroke(new BasicStroke(2));
-                g2d.drawLine(from.x, from.y, mousePos.x, mousePos.y);
-            }
-        }
     }
 
     private void drawGrid(Graphics2D g2d) {
         g2d.setColor(GRID_COLOR);
-        g2d.setStroke(new BasicStroke(1));
-        
-        int width = getWidth();
-        int height = getHeight();
-        
-        // Draw vertical lines
-        for (int x = 0; x < width; x += GRID_SIZE) {
-            g2d.drawLine(x, 0, x, height);
+        for (int x = 0; x < getWidth(); x += GRID_SIZE) {
+            g2d.drawLine(x, 0, x, getHeight());
         }
-        
-        // Draw horizontal lines
-        for (int y = 0; y < height; y += GRID_SIZE) {
-            g2d.drawLine(0, y, width, y);
+        for (int y = 0; y < getHeight(); y += GRID_SIZE) {
+            g2d.drawLine(0, y, getWidth(), y);
         }
     }
 
-    public void setLinks(ArrayList<Link> links) {
-        this.links = links;
-        repaint();
-    }
-
-    public void setNetwork(Network network) {
-        this.network = network;
-    }
-
-    public void setNodes(ArrayList<NodeView> nodes) {
-        this.nodes = nodes;
-        removeAll();
-        for (NodeView node : nodes) {
-            add(node);
-        }
-        repaint();
-    }
-
-    public void updateLinks() {
-        // Clear existing links
-        links.clear();
-        
-        // Create new links based on parent-child relationships
-        for (NodeView nodeView : nodes) {
-            Node node = nodeView.getNode();
-            for (Node parent : node.getParents()) {
-                NodeView parentView = findNodeView(parent);
-                if (parentView != null) {
-                    Link link = new Link();
-                    
-                    // Calculate connection points on the edges of the nodes
-                    Point from = calculateConnectionPoint(parentView, nodeView);
-                    Point to = calculateConnectionPoint(nodeView, parentView);
-                    
-                    link.addPoint(from);
-                    link.addPoint(to);
-                    links.add(link);
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (linkCreationMode) {
+            Component component = getComponentAt(e.getPoint());
+            if (component instanceof NodeView) {
+                NodeView clickedNode = (NodeView) component;
+                if (sourceNode == null) {
+                    sourceNode = clickedNode;
+                } else if (sourceNode != clickedNode) {
+                    // Notify controller to add edge
+                    firePropertyChange("addEdge", null, new EdgeEvent(sourceNode.getNode(), clickedNode.getNode()));
+                    sourceNode = null;
+                    toggleLinkCreationMode();
                 }
             }
         }
-        
-        repaint();
-    }
-    
-    private NodeView findNodeView(Node node) {
-        for (NodeView nodeView : nodes) {
-            if (nodeView.getNode() == node) {
-                return nodeView;
-            }
-        }
-        return null;
-    }
-    
-    @Override
-    public void mouseClicked(MouseEvent e) {
-        if (!linkCreationMode) {
-            return;
-        }
-
-        // Find clicked node
-        NodeView clickedNode = null;
-        for (NodeView node : nodes) {
-            if (node.getBounds().contains(e.getPoint())) {
-                clickedNode = node;
-                break;
-            }
-        }
-
-        if (clickedNode == null) {
-            return;
-        }
-
-        if (sourceNode == null) {
-            // First click - select source node
-            sourceNode = clickedNode;
-        } else {
-            // Second click - create link
-            if (sourceNode != clickedNode) {
-                if (network.wouldCreateCycle(sourceNode.getNode(), clickedNode.getNode())) {
-                    JOptionPane.showMessageDialog(this,
-                        "Cannot create link: would create a cycle in the network",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
-                } else {
-                    clickedNode.getNode().addParent(sourceNode.getNode());
-                    updateLinks();
-                }
-            }
-            // Reset link creation mode
-            linkCreationMode = false;
-            sourceNode = null;
-            setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-        }
-    }
-
-    private Point calculateConnectionPoint(NodeView from, NodeView to) {
-        Point fromCenter = new Point(
-            from.getX() + from.getWidth() / 2,
-            from.getY() + from.getHeight() / 2
-        );
-        
-        if (to == null) {
-            return fromCenter;
-        }
-        
-        Point toCenter = new Point(
-            to.getX() + to.getWidth() / 2,
-            to.getY() + to.getHeight() / 2
-        );
-        
-        // Calculate the angle between centers
-        double angle = Math.atan2(toCenter.y - fromCenter.y, toCenter.x - fromCenter.x);
-        
-        // Calculate the intersection point with the node's edge
-        int radius = Math.max(from.getWidth(), from.getHeight()) / 2;
-        return new Point(
-            (int)(fromCenter.x + radius * Math.cos(angle)),
-            (int)(fromCenter.y + radius * Math.sin(angle))
-        );
     }
 
     @Override
-    public void mousePressed(MouseEvent e) {
-        // Not used
-    }
+    public void mousePressed(MouseEvent e) {}
 
     @Override
-    public void mouseReleased(MouseEvent e) {
-        // Not used
-    }
+    public void mouseReleased(MouseEvent e) {}
 
     @Override
-    public void mouseEntered(MouseEvent e) {
-        // Not used
-    }
+    public void mouseEntered(MouseEvent e) {}
 
     @Override
-    public void mouseExited(MouseEvent e) {
-        // Not used
-    }
+    public void mouseExited(MouseEvent e) {}
 
-    // Add this method to get NodeView for a given Node
-    public NodeView getNodeView(Node node) {
-        for (Component comp : getComponents()) {
-            if (comp instanceof NodeView) {
-                NodeView nodeView = (NodeView) comp;
-                if (nodeView.getNode() == node) {
-                    return nodeView;
-                }
-            }
+    public static class EdgeEvent {
+        private final Node from;
+        private final Node to;
+
+        public EdgeEvent(Node from, Node to) {
+            this.from = from;
+            this.to = to;
         }
-        return null;
+
+        public Node getFrom() {
+            return from;
+        }
+
+        public Node getTo() {
+            return to;
+        }
     }
 }
